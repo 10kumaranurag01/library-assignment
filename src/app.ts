@@ -4,11 +4,13 @@ import dotenv from "dotenv";
 import bookRoutes from "./routes/bookRoutes";
 import transactionRoutes from "./routes/transactionRoutes";
 import helperRoutes from "./routes/helperRoutes";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 app.use("/api/books", bookRoutes);
 app.use("/api/transactions", transactionRoutes);
