@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const transactionController_1 = require("../controllers/transactionController");
+const validateSchema_1 = require("../middlewares/validateSchema");
+const transactionSchema_1 = require("../schemas/transactionSchema");
+const router = (0, express_1.Router)();
+router.get("/book/:name/details", transactionController_1.getBookIssuanceDetailsByName);
+router.get("/book/:name/rent", transactionController_1.getTotalRentByBookName);
+router.get("/user/:userIdOrName/books", transactionController_1.getBooksIssuedToUserByName);
+router.get("/date-range", transactionController_1.getBooksIssuedInDateRange);
+router.post("/issue", (0, validateSchema_1.validateBody)(transactionSchema_1.issueBookSchema), transactionController_1.issueBook);
+router.post("/return", (0, validateSchema_1.validateBody)(transactionSchema_1.returnBookSchema), transactionController_1.returnBook);
+exports.default = router;
