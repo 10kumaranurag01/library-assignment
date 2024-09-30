@@ -1,6 +1,8 @@
 import { Request, Response, RequestHandler } from "express";
 import Book from "../models/bookModel";
 import Transaction from "../models/transactionModel";
+import User from "../models/userModel";
+import mongoose from "mongoose";
 
 export const getBookIssuanceDetailsByName: RequestHandler = async (
   req: Request,
@@ -74,9 +76,6 @@ export const getTotalRentByBookName: RequestHandler = async (
     return;
   }
 };
-
-import User from "../models/userModel";
-import mongoose from "mongoose";
 
 export const getBooksIssuedToUserByName: RequestHandler = async (
   req: Request,
