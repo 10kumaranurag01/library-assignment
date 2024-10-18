@@ -1,6 +1,8 @@
 import { Request, Response, RequestHandler } from "express";
 import Book from "../models/bookModel";
 import Transaction from "../models/transactionModel";
+import User from "../models/userModel";
+import mongoose from "mongoose";
 
 export const getBookIssuanceDetailsByName: RequestHandler = async (
   req: Request,
@@ -74,9 +76,6 @@ export const getTotalRentByBookName: RequestHandler = async (
     return;
   }
 };
-
-import User from "../models/userModel";
-import mongoose from "mongoose";
 
 export const getBooksIssuedToUserByName: RequestHandler = async (
   req: Request,
@@ -217,4 +216,156 @@ export const returnBook = async (
 
   await transaction.save();
   res.json(transaction);
+};
+
+export const transactionsInDateRange = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { startDate, endDate } = req.query;
+
+  try {
+    function getDatesInRange(startDate: Date, endDate: Date): Date[] {
+      const dates: Date[] = [];
+      let currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        dates.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      return dates;
+    }
+
+    const transactions = await Transaction.find({
+      $or: [
+        {
+          issueDate: {
+            $gte: new Date(startDate as string),
+            $lte: new Date(endDate as string),
+          },
+        },
+        {
+          returnDate: {
+            $gte: new Date(startDate as string),
+            $lte: new Date(endDate as string),
+          },
+        },
+      ],
+    });
+
+    const dateRange = getDatesInRange(
+      new Date(startDate as string),
+      new Date(endDate as string)
+    );
+
+    const transactionCountPerDay: Record<string, number> = {};
+
+    dateRange.forEach((date) => {
+      const dateString = date.toISOString().split("T")[0];
+      transactionCountPerDay[dateString] = 0;
+    });
+
+    transactions.forEach((transaction) => {
+      const issueDate = new Date(transaction.issueDate)
+        .toISOString()
+        .split("T")[0];
+      const returnDate = new Date(transaction.returnDate)
+        .toISOString()
+        .split("T")[0];
+
+      dateRange.forEach((date) => {
+        const dateString = date.toISOString().split("T")[0];
+
+        if (issueDate === dateString || returnDate === dateString) {
+          transactionCountPerDay[dateString]++;
+        }
+      });
+    });
+
+    const filteredTransactionCountPerDay = Object.fromEntries(
+      Object.entries(transactionCountPerDay).filter(([_, count]) => count > 0)
+    );
+
+    res.json(filteredTransactionCountPerDay);
+    return;
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "An error occurred while processing the request" });
+    return;
+  }
+};
+
+export const transactionsInDateRangeByAggregation = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { startDate, endDate } = req.query;
+
+  try {
+    const transactionsPerDay = await Transaction.aggregate([
+      {
+        $match: {
+          $or: [
+            {
+              issueDate: {
+                $gte: new Date(startDate as string),
+                $lte: new Date(endDate as string),
+              },
+            },
+            {
+              returnDate: {
+                $gte: new Date(startDate as string),
+                $lte: new Date(endDate as string),
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          transactionDates: ["$issueDate", "$returnDate"],
+        },
+      },
+      {
+        $unwind: "$transactionDates",
+      },
+      {
+        $match: {
+          transactionDates: {
+            $gte: new Date(startDate as string),
+            $lte: new Date(endDate as string),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$transactionDates" },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    const transactionCountPerDay = transactionsPerDay.reduce(
+      (acc, { _id, count }) => {
+        acc[_id] = count;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    res.json(transactionCountPerDay);
+    return;
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "An error occurred while processing the request" });
+    return;
+  }
 };

@@ -15,3 +15,12 @@ export const returnBookSchema = z.object({
     message: "Invalid Return Date format",
   }),
 });
+
+export const getTransactionsByDateRangeSchema = z.object({
+  startDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Invalid Start Date format",
+  }),
+  endDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Invalid End Date format",
+  }),
+});
